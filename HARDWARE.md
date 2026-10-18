@@ -15,13 +15,14 @@ Alle Beträge sind **Bruttopreise in EUR (Recherche: 18.10.2026)**, **ohne Versa
 | Pos. | Bauteil / Zweck | Menge | Lieferant / Bestelllink | Einzelpreis | Gesamt |
 |---:|---|---:|---|---|---:|
 | 1 | **Seeed XIAO ESP32-S3 Sense (ohne Header)** – inkl. Kamera (bei Reichelt als **OV3660, 3 MP** gelistet), Erweiterungsplatine, WLAN, microSD-Steckplatz, USB-C und LiPo-Ladefunktion | 1 Set | [Reichelt – XIAO ESP32S3 SEN](https://www.reichelt.de/de/de/shop/produkt/xiao_esp32s3_sense_wifi_bt_kamera_ov3660_ohne_header-358353) | 15,40 € | 15,40 € |
-| 2 | **LiPo-Akku, 3,7 V / 1000 mAh**, mit Schutzschaltung | 1 | [EREMIT – 803040](https://www.eremit.de/p/eremit-3-7v-1000mah-lipo-akku-803040) | 5,40 € | 5,40 € |
+| 2 | **XTAR 14500 Li-Ion-Akku, 3,6 V / 800 mAh**, mit Schutzschaltung | 1 | [Reichelt – XTAR 14500](https://www.reichelt.de/de/de/shop/produkt/industriezelle_li-ion_14500_3_6_v_800_mah_button_top-253362) | 5,70 € | 5,70 € |
 | 3 | **Weiße SMD-LED, 1206, 120°** – Ausleuchtung des Gehörgangs | 4 | [Reichelt – 1206W2C-KHC-B](https://www.reichelt.de/de/de/shop/produkt/led_smd_1206_weiss_560_mcd_120_-361551) | 0,15 € | 0,60 € |
 | 4 | **N-MOSFET 2N7000, TO-92** – LED-Schaltung/Helligkeitsregelung, Eignung anhand des Gesamtstroms prüfen | 1 | [Reichelt – 2N 7000](https://www.reichelt.de/de/de/shop/produkt/mosfet_n-ch_60v_0_115a_0_4w_1_7r_to-92-41141) | 0,09 € | 0,09 € |
 | 5 | **Mini-Schiebeschalter** – Akkutrennung / Ein-Aus | 1 | [Reichelt – NK 236](https://www.reichelt.de/de/de/shop/produkt/subminiatur-schiebeschalter_1x_um_gerade-27898) | 1,47 € | 1,47 € |
 | 6 | **Lochrasterplatine, 60 × 40 mm** – Aufbau der Beleuchtungs- und Bedienelektronik | 1 | [Reichelt – LR-DS-46](https://www.reichelt.de/de/de/shop/produkt/lochrasterplatine_doppelseitig_60_x_40_mm-319112) | 1,20 € | 1,20 € |
 | 7 | **3D-gedrucktes Testgehäuse**, Kamera-/LED-Halterung und späterer Spekulumadapter | 1 Satz | Eigenfertigung mit vorhandenem Filament; CAD-Basis: [GliaX/Otoscope](https://github.com/GliaX/Otoscope) | 0,00 €¹ | 0,00 €¹ |
 | 8 | **USB-C-Daten-/Ladekabel** – Flashen und Laden | 1 | Vorhanden | 0,00 €¹ | 0,00 €¹ |
+| 9 | **Batteriehalter für 1 × AA/14500**, mit Lötfahnen (Passung der geschützten 14500-Zelle noch prüfen) | 1 | [Reichelt – AA-Batteriehalter](https://www.reichelt.de/de/de/shop/produkt/batteriehalter_fuer_1_mignonzelle_aa_loetfahne-8434) | 0,31 € | 0,31 € |
 | | **Gesamtsumme V1 (ohne Versand)** | | | | **24,16 €** |
 
 ¹ **Kein zusätzlicher Einkauf angenommen**. Filamentverbrauch, Arbeitszeit, Werkzeug und Ausschuss sind nicht eingepreist.

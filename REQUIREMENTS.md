@@ -1,33 +1,23 @@
-# Digitales Otoskop – Anforderungen
+# Digitales Otoskop – Softwarestand
 
-Stand: Mac-App 1.5.0, ESP-Firmware 1.4.0. Die Häkchen zeigen, was eingebaut ist. Der offizielle Hardwaretest steht noch aus.
+Mac-App 1.6.0 und ESP-Firmware 1.5.0.
+
+**Die offizielle Erprobung der Hardware steht noch aus.**
 
 ## Eingebaut
 
-- [x] Mac-App für Apple Silicon ab macOS 13.
-- [x] Neu in 1.5: Hell und dunkel über Sonne und Mond umschalten. Die App merkt sich die Auswahl.
-- [x] Livebild mit 640 × 480 über das WLAN des Otoskops, mit Pause, Vollbild und Verbindungsanzeige.
-- [x] Oberfläche auf Deutsch und Englisch, mit Demo und Hilfe zur Einrichtung.
-- [x] ESP-Firmware per USB direkt in der App installieren. Der Assistent führt durch die Einrichtung und zeigt das WLAN an.
-- [x] Fehler bei Kamera und Verbindung anzeigen und bei Abbruch erneut verbinden.
-- [x] Fotos per Knopf oder Leertaste in der maximalen Auflösung des Kamerasensors aufnehmen. Original-JPEG im gewählten Ordner speichern und in der App als Vorschau anzeigen.
-- [x] Über die Webseite des ESP Fotos separat auf microSD speichern.
-- [x] Lokal arbeiten, ohne Konto und Cloud.
-- [x] Anleitung, Beschreibung der ESP-Schnittstelle und Testskripte sind im Projekt.
-
-## Teilweise eingebaut
-
-- Windows nutzt denselben App-Code. Es gibt ein Startskript und ein Quellpaket. Die fertige EXE und der Test unter Windows stehen noch aus.
-- LED-Regler und PWM sind im Code. Die Ausgabe ist im ausgelieferten Stand mit `LIGHT_GPIO = -1` deaktiviert. Der passende Pin muss für den Aufbau gesetzt werden.
-- Die App erkennt unterstützte Geräte über USB. Das WLAN wählt man selbst. Die ESP-Webseite bietet Livebild und SD-Aufnahme.
-- Die Seitenleiste lässt sich ausblenden. Die App zeigt Fotos der aktuellen Sitzung und benennt PC-Fotos mit Datum und Uhrzeit. SD-Fotos werden durchnummeriert.
-- Die App prüft JPEGs und zeigt Schreibfehler an. Bei einem Abbruch auf der SD-Karte können unvollständige Dateien bleiben.
-- Details zum Flashen und serielle ESP-Meldungen helfen bei der Fehlersuche.
+- [x] Mac-App für Apple Silicon ab macOS 13, auf Deutsch und Englisch. Hell-/Dunkelmodus, Demo und Hilfe sind eingebaut.
+- [x] Firmware über USB in der App installieren. Der Assistent zeigt danach das WLAN des Otoskops an.
+- [x] Livebild mit 640 × 480 über das WLAN des Otoskops. Das Bild lässt sich pausieren und im Vollbild anzeigen. Bei einem Abbruch versucht die App, sich neu zu verbinden.
+- [x] Fotos in der maximalen Auflösung des Kamerasensors aufnehmen und als JPEG im gewählten Ordner speichern. Neue Fotos erscheinen in der Vorschauleiste.
+- [x] LED über D0 (GPIO1) von 0 bis 100 % dimmen. Beim Start ist sie aus. Ohne Steuerbefehl schaltet sie nach 10 Sekunden ab.
+- [x] Zusätzlich kleine Browseransicht direkt auf dem ESP. Im Otoskop-WLAN lässt sie sich unter `http://192.168.4.1` öffnen. Dort gibt es ein Livebild und eine Taste für Fotos auf microSD.
+- [x] Die App funktioniert lokal ohne Konto und Cloud.
 
 ## Noch offen
 
-- [ ] Livebild und Aufnahme am aufgebauten Otoskop prüfen, auch bei längerer Nutzung.
-- [ ] Physischen Fotoauslöser ergänzen.
-- [ ] Akkuanzeige, Videoaufnahme und automatischen Import von SD-Fotos umsetzen.
+- [ ] Livebild, Fotos, SD-Speicherung und LED-Regelung am aufgebauten Otoskop offiziell erproben.
+- [ ] Windows-EXE erstellen und auf Windows testen. Quellpaket und Startskript sind vorhanden.
+- [ ] Fotoauslöser am Gerät, Akkuanzeige, Videoaufnahme und automatischen Import von SD-Fotos ergänzen.
 
-Weitere optionale Punkte für später sind zusätzliche Plattformen und Sprachen, mehr Kamera- und Bildfunktionen, automatische Einrichtung, Datensicherung und Updates.
+Weitere optionale Punkte für später sind zusätzliche Plattformen und Sprachen und mehr Kamera- und Bildfunktionen

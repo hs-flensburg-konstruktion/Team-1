@@ -1,0 +1,35 @@
+Otoskop Desktop 1.3.0 - mitgelieferte Laufzeitbibliotheken
+
+Qt / PySide6 / Shiboken6 6.10.1
+Copyright The Qt Company Ltd. und weitere Beitragende.
+Verwendete Python-Pakete: PySide6-Essentials, shiboken6.
+Lizenzauswahl dieser Anwendung: GNU LGPL Version 3.
+Die vollständigen Texte von LGPLv3 und GPLv3 liegen in diesem Ordner.
+Qt ist dynamisch eingebunden. Der Python-Anwendungscode liegt im begleitenden
+Quellpaket vor; er enthält keine geänderte Qt-Version.
+Upstream und zugehöriger Quellcode:
+https://code.qt.io/pyside/pyside-setup.git/?h=v6.10.1
+https://code.qt.io/qt/qtbase.git/?h=v6.10.1
+https://download.qt.io/archive/qt/6.10/6.10.1/
+https://doc.qt.io/qt-6/licenses-used-in-qt.html
+
+Python
+Copyright Python Software Foundation und weitere Beitragende.
+Die zum verwendeten Python gehörende LICENSE.txt wird beim Build mitkopiert,
+sofern sie in der Python-Installation verfügbar ist.
+https://www.python.org/downloads/source/
+
+PyInstaller 6.17.0
+Copyright PyInstaller Development Team und weitere Beitragende.
+GPLv2 oder neuer mit Bootloader-Ausnahme; COPYING.txt wird beim Build mitkopiert.
+https://github.com/pyinstaller/pyinstaller/tree/v6.17.0
+
+Diese Datei benennt die wesentlichen Laufzeitkomponenten. Weitere von Qt und
+Python verwendete Komponenten und ihre Lizenzhinweise sind in deren Upstream-
+Quellständen bzw. der oben verlinkten Qt-Lizenzübersicht dokumentiert.
+
+USB-Installation: esptool 5.1.0 (GPLv2+), pySerial 3.5 (BSD).
+Esptool-Lizenz und Abhängigkeits-Metadaten werden im App-Paket mitgeliefert.
+https://github.com/espressif/esptool/tree/v5.1.0
+https://github.com/pyserial/pyserial/tree/v3.5
+Die ESP-Firmware ist im Windows-Quellpaket ebenfalls als Quellcode enthalten.

@@ -19,6 +19,9 @@
 #include "photo_names.h"
 #include "jpeg_dimensions.h"
 #include "photo_buffer.h"
+#include "offline_control.h"
+#include "charge_status.h"
+#include <mbedtls/sha256.h>
 
 #if !defined(ARDUINO_XIAO_ESP32S3) || !defined(BOARD_HAS_PSRAM)
 #error "Build requires XIAO_ESP32S3 and PSRAM=opi; use scripts/build.sh"
@@ -27,6 +30,13 @@
 #error "USB CDC on boot must be enabled"
 #endif
 
+static bool wifiMode = false;
+static bool cameraActive = false;
+static bool offlineFault = false;
+static ShutterButton shutter;
+static std::atomic<ChargeState> chargeState{ChargeState::NoUsb};
+static std::atomic<bool> statusReady{false}, photoBusy{false}, photoSuccess{false};
+static std::atomic<uint32_t> photoSuccessAt{0};
 static Preferences counterStore;
 static SemaphoreHandle_t cameraMutex;
 static httpd_handle_t webServer = nullptr, streamServer = nullptr;
@@ -114,6 +124,8 @@ button:disabled{opacity:.45;cursor:wait}.panel{background:#1a3441;padding:16px;b
 </style><main><h1>Otoskop</h1><small>Livebild 640 × 480 · Fotos in voller Sensorauflösung · microSD</small>
 <img id="live" alt="Das Livebild wird geladen.">
 <button id="photo" disabled>Foto auf SD speichern</button><button id="toggle">Livebild pausieren</button>
+<p><strong>WLAN-Modus</strong> · Zum Offline-Modus normal neu starten.</p>
+<button id="listPhotos">SD-Fotos anzeigen</button><button id="morePhotos" hidden>Weitere Fotos</button><div id="files"></div>
 <p id="result" role="status" aria-live="polite"></p><div id="status" class="panel">Status wird geladen …</div>
 <p><small>Fotos liegen im Ordner /photos auf der microSD-Karte. Karte nur bei ausgeschaltetem Board entfernen.</small></p></main>
 <script>
@@ -131,6 +143,18 @@ photo.onclick=async()=>{busy=true;photo.disabled=true;result.className='';result
 const r=await fetch('/capture',{method:'POST'});const s=await r.json();if(!r.ok)throw Error(s.error||'HTTP '+r.status);
 result.textContent='Gespeichert: '+s.path+' · '+s.width+' × '+s.height+' ('+s.bytes+' Bytes)';
 }catch(e){result.className='error';result.textContent=e.message}finally{busy=false;await refresh()}};
+let after=0;
+const files=document.querySelector('#files'),listPhotos=document.querySelector('#listPhotos'),morePhotos=document.querySelector('#morePhotos');
+async function list(reset){listPhotos.disabled=morePhotos.disabled=true;try{
+if(reset){after=0;files.replaceChildren();morePhotos.hidden=true;}
+const r=await fetch('/photos?after='+after,{cache:'no-store'});const data=await r.json();
+if(!r.ok)throw Error(data.error||'HTTP '+r.status);
+for(const item of data.photos){const row=document.createElement('p'),a=document.createElement('a');
+a.textContent=item.name+' · '+Math.round(item.bytes/1024)+' KB';a.href='/photo?name='+encodeURIComponent(item.name);a.download=item.name;a.style.color='#66e0c7';row.append(a);files.append(row);}
+after=data.next_after;morePhotos.hidden=after===null;
+if(!data.photos.length&&reset)files.textContent='Keine Fotos auf der SD-Karte.';
+}catch(e){result.textContent=e.message;result.className='error';}finally{listPhotos.disabled=morePhotos.disabled=false;}}
+listPhotos.onclick=()=>list(true);morePhotos.onclick=()=>list(false);
 start();refresh();setInterval(refresh,3000);
 </script></html>)HTML";
 
@@ -177,9 +201,9 @@ static void initCamera() {
   // the detected sensor's native maximum (OV2640 / OV3660 / OV5640).
   config.frame_size = FRAMESIZE_5MP;
   config.jpeg_quality = PHOTO_QUALITY;
-  config.fb_count = 2;
+  config.fb_count = wifiMode ? 2 : 1;
   config.fb_location = CAMERA_FB_IN_PSRAM;
-  config.grab_mode = CAMERA_GRAB_LATEST;
+  config.grab_mode = wifiMode ? CAMERA_GRAB_LATEST : CAMERA_GRAB_WHEN_EMPTY;
   const esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     cameraMessage = "Kamera nicht gestartet: " + String(esp_err_to_name(err)) +
@@ -196,12 +220,13 @@ static void initCamera() {
   photoSize = info->max_size;
   photoWidth = resolution[photoSize].width;
   photoHeight = resolution[photoSize].height;
-  if (sensor->set_framesize(sensor, STREAM_SIZE) != 0 ||
-      sensor->set_quality(sensor, STREAM_QUALITY) != 0) {
+  if (sensor->set_framesize(sensor, wifiMode ? STREAM_SIZE : photoSize) != 0 ||
+      sensor->set_quality(sensor, wifiMode ? STREAM_QUALITY : PHOTO_QUALITY) != 0) {
     cameraMessage = "Livebild-Auflösung konnte nicht eingestellt werden. Board neu starten.";
     esp_camera_deinit();
     return;
   }
+  cameraActive = true;
   cameraReady = true;
   cameraMessage = String("Bereit, ") + info->name + "; Live 640 × 480, Foto " +
                   String(photoWidth) + " × " + String(photoHeight) + "; Sensor-ID 0x" + String(sensor->id.PID, HEX) +
@@ -240,9 +265,9 @@ static esp_err_t indexHandler(httpd_req_t *req) {
   return httpd_resp_send(req, INDEX_HTML, HTTPD_RESP_USE_STRLEN);
 }
 
-// All SD state and NVS operations belong to the port-80 HTTP server task.
+// In Wi-Fi mode SD/NVS are owned by the port-80 task; offline by loop only.
 static esp_err_t statusHandler(httpd_req_t *req) {
-  String json = "{\"api_version\":2,\"snapshot_supported\":true,\"high_res_photo_supported\":true,\"camera_ok\":" + String(cameraReady ? "true" : "false") +
+  String json = String("{\"charge_state\":") + jsonQuote(chargeStateName(chargeState.load())) + ",\"mode\":\"wifi\",\"sd_download_supported\":true,\"api_version\":2,\"snapshot_supported\":true,\"high_res_photo_supported\":true,\"camera_ok\":" + String(cameraReady ? "true" : "false") +
                 ",\"stream_width\":640,\"stream_height\":480,\"photo_width\":" + String(photoWidth) +
                 ",\"photo_height\":" + String(photoHeight) +
                 ",\"device_id\":" + jsonQuote(deviceId) + ",\"device_name\":" + jsonQuote(deviceName) +
@@ -286,6 +311,8 @@ static esp_err_t lightHandler(httpd_req_t *req) {
 // on every path, then release the camera before network or SD I/O.
 static bool takePhoto(Photo &photo, String &error) {
   if (!cameraReady) { error = cameraMessage; return false; }
+  if (!cameraActive) initCamera();
+  if (!cameraActive) { cameraReady = false; error = cameraMessage; return false; }
   if (xSemaphoreTake(cameraMutex, pdMS_TO_TICKS(5000)) != pdTRUE) {
     error = "Kamera beschäftigt. Erneut versuchen.";
     return false;
@@ -314,8 +341,8 @@ static bool takePhoto(Photo &photo, String &error) {
       error = "Kamera liefert noch kein vollständiges Foto in maximaler Auflösung. Erneut versuchen.";
   } else error = "Fotoauflösung konnte nicht eingestellt werden.";
   // Do not short-circuit: attempt both restoration operations even on failure.
-  const bool sizeRestored = sensor && sensor->set_framesize(sensor, STREAM_SIZE) == 0;
-  const bool qualityRestored = sensor && sensor->set_quality(sensor, STREAM_QUALITY) == 0;
+  const bool sizeRestored = !wifiMode || (sensor && sensor->set_framesize(sensor, STREAM_SIZE) == 0);
+  const bool qualityRestored = !wifiMode || (sensor && sensor->set_quality(sensor, STREAM_QUALITY) == 0);
   if (!sizeRestored || !qualityRestored) {
     cameraMessage = "Livebild konnte nach der Aufnahme nicht wiederhergestellt werden. Board neu starten.";
     cameraReady = false;
@@ -356,37 +383,135 @@ static int reservePhoto(char *sdPath, size_t sdPathSize, String &error) {
   return -1;
 }
 
-static esp_err_t captureHandler(httpd_req_t *req) {
-  if (!cameraReady) return sendError(req, "503 Service Unavailable", cameraMessage);
-  if (!sdReady || !counterReady) return sendError(req, "503 Service Unavailable", sdMessage);
-  Photo photo;
-  String error;
-  if (!takePhoto(photo, error)) return sendError(req, "503 Service Unavailable", error);
-  char path[40] = {};
-  const int fd = reservePhoto(path, sizeof(path), error);
-  const size_t length = photo.length;
+// Shared storage path; success is returned only after fsync AND close.
+static bool saveSDPhoto(const Photo &photo, String &path, String &error) {
+  if (!sdReady || !counterReady) { error = sdMessage; return false; }
+  char name[40] = {};
+  const int fd = reservePhoto(name, sizeof(name), error);
   bool saved = fd >= 0;
   if (saved) {
     size_t offset = 0;
-    while (offset < length) {
-      const ssize_t count = write(fd, photo.data + offset, length - offset);
+    while (offset < photo.length) {
+      const ssize_t count = write(fd, photo.data + offset, photo.length - offset);
       if (count < 0 && errno == EINTR) continue;
       if (count <= 0) { saved = false; break; }
       offset += static_cast<size_t>(count);
     }
     if (fsync(fd) != 0) saved = false;
     if (close(fd) != 0) saved = false;
-    if (!saved) error = "JPEG nicht vollständig gespeichert. SD voll, entfernt oder Schreibfehler. Karte bei ausgeschaltetem Board prüfen.";
-    // A failed partial file is intentionally retained; its number is never reused.
+    if (!saved) error = "JPEG nicht vollständig gespeichert. SD-Karte prüfen und neu starten.";
   }
-  if (!saved) {
-    sdReady = false; sdMessage = error + " Anschließend Board neu starten.";
-    return sendError(req, "507 Insufficient Storage", sdMessage);
-  }
-  lastSaved = path;
-  Serial.printf("Foto gespeichert: %s (%u Bytes)\n", path, static_cast<unsigned>(length));
-  return sendJson(req, "201 Created", "{\"path\":" + jsonQuote(path) + ",\"bytes\":" + String(length) +
+  if (!saved) { sdReady = false; sdMessage = error; return false; }
+  lastSaved = path = name;
+  Serial.printf("Foto gespeichert: %s (%u Bytes)\n", name, static_cast<unsigned>(photo.length));
+  return true;
+}
+
+static esp_err_t captureHandler(httpd_req_t *req) {
+  if (!sdReady) return sendError(req, "503 Service Unavailable", sdMessage);
+  Photo photo;
+  String error, path;
+  if (!takePhoto(photo, error)) return sendError(req, "503 Service Unavailable", error);
+  if (!saveSDPhoto(photo, path, error)) return sendError(req, "507 Insufficient Storage", error);
+  return sendJson(req, "201 Created", "{\"path\":" + jsonQuote(path) + ",\"bytes\":" + String(photo.length) +
                   ",\"width\":" + String(photoWidth) + ",\"height\":" + String(photoHeight) + "}");
+}
+
+// Paginate by photo number, with bounded memory even on a full card.
+static esp_err_t photosHandler(httpd_req_t *req) {
+  if (!sdReady) return sendError(req, "503 Service Unavailable", sdMessage);
+  char query[64] = {}, value[12] = {};
+  uint32_t after = 0;
+  if (httpd_req_get_url_query_len(req)) {
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) != ESP_OK ||
+        httpd_query_key_value(query, "after", value, sizeof(value)) != ESP_OK)
+      return sendError(req, "400 Bad Request", "Ungültige Seitenauswahl.");
+    uint64_t parsed = 0;
+    if (!strlen(value)) return sendError(req, "400 Bad Request", "Ungültige Seitenauswahl.");
+    for (const char *c = value; *c; ++c) {
+      if (*c < '0' || *c > '9') return sendError(req, "400 Bad Request", "Ungültige Seitenauswahl.");
+      parsed = parsed * 10 + unsigned(*c - '0');
+      if (parsed > UINT32_MAX) return sendError(req, "400 Bad Request", "Ungültige Seitenauswahl.");
+    }
+    after = static_cast<uint32_t>(parsed);
+  }
+  struct Entry { uint32_t number; size_t bytes; } entries[50];
+  size_t count = 0;
+  File dir = SD.open("/photos");
+  if (!dir || !dir.isDirectory()) return sendError(req, "500 Internal Server Error", "Fotoordner nicht lesbar.");
+  File file = dir.openNextFile();
+  while (file) {
+    uint32_t number = 0;
+    if (!file.isDirectory() && parsePhotoNumber(file.name(), number) && number > after) {
+      size_t pos = 0;
+      while (pos < count && entries[pos].number < number) ++pos;
+      if (pos < 50) {
+        if (count < 50) ++count;
+        for (size_t j = count - 1; j > pos; --j) entries[j] = entries[j-1];
+        entries[pos] = {number, file.size()};
+      }
+    }
+    file.close(); file = dir.openNextFile();
+    delay(1);
+  }
+  dir.close();
+  String json = "{\"photos\":[";
+  for (size_t i = 0; i < count; ++i) {
+    char name[32]; snprintf(name, sizeof(name), "IMG_%010lu.jpg", static_cast<unsigned long>(entries[i].number));
+    if (i) json += ',';
+    json += "{\"name\":" + jsonQuote(name) + ",\"bytes\":" + String(entries[i].bytes) + "}";
+  }
+  json += "],\"next_after\":";
+  json += count == 50 ? String(entries[count-1].number) : String("null");
+  return sendJson(req, "200 OK", json + "}");
+}
+
+// Only canonical basenames are accepted. Hash first, then stream from SD in
+// small blocks; the desktop verifies the exact bytes before committing a file.
+static esp_err_t photoHandler(httpd_req_t *req) {
+  if (!sdReady) return sendError(req, "503 Service Unavailable", sdMessage);
+  char query[64], name[32]; uint32_t number = 0;
+  if (httpd_req_get_url_query_str(req, query, sizeof(query)) != ESP_OK ||
+      httpd_query_key_value(query, "name", name, sizeof(name)) != ESP_OK ||
+      strlen(name) != 18 || !parsePhotoNumber(name, number))
+    return sendError(req, "400 Bad Request", "Ungültiger Fotodateiname.");
+  File file = SD.open(String("/photos/") + name, FILE_READ);
+  if (!file || file.isDirectory()) return sendError(req, "404 Not Found", "Foto nicht gefunden.");
+  const size_t size = file.size();
+  if (size < 4 || size > 4 * 1024 * 1024)
+    return sendError(req, "422 Unprocessable Content", "Unvollständiges oder zu großes Foto.");
+  mbedtls_sha256_context hash;
+  mbedtls_sha256_init(&hash);
+  bool ok = mbedtls_sha256_starts(&hash, 0) == 0;
+  uint8_t block[2048], digest[32]; size_t total = 0;
+  while (ok && total < size) {
+    const int n = file.read(block, sizeof(block));
+    if (n <= 0) { ok = false; break; }
+    total += size_t(n);
+    ok = mbedtls_sha256_update(&hash, block, size_t(n)) == 0;
+    delay(1);
+  }
+  ok = ok && total == size && mbedtls_sha256_finish(&hash, digest) == 0;
+  mbedtls_sha256_free(&hash);
+  if (!ok || !file.seek(0)) return sendError(req, "500 Internal Server Error", "Foto nicht vollständig lesbar.");
+  char hex[65], bytes[16], disposition[80];
+  for (unsigned i = 0; i < 32; ++i) snprintf(hex + i*2, 3, "%02x", digest[i]);
+  snprintf(bytes, sizeof(bytes), "%u", static_cast<unsigned>(size));
+  snprintf(disposition, sizeof(disposition), "attachment; filename=\"%s\"", name);
+  httpd_resp_set_type(req, "image/jpeg");
+  httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+  httpd_resp_set_hdr(req, "X-Photo-SHA256", hex);
+  httpd_resp_set_hdr(req, "X-Photo-Bytes", bytes);
+  httpd_resp_set_hdr(req, "X-Device-ID", deviceId.c_str());
+  httpd_resp_set_hdr(req, "Content-Disposition", disposition);
+  total = 0;
+  while (total < size) {
+    const int n = file.read(block, sizeof(block));
+    if (n <= 0 || httpd_resp_send_chunk(req, reinterpret_cast<char *>(block), size_t(n)) != ESP_OK)
+      return ESP_FAIL;
+    total += size_t(n);
+  }
+  return httpd_resp_send_chunk(req, nullptr, 0);
 }
 
 static esp_err_t streamHandler(httpd_req_t *req) {
@@ -437,7 +562,7 @@ static bool registerRoute(httpd_handle_t server, const char *uri, httpd_method_t
 static void startServers() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 81; config.ctrl_port = 32769;
-  config.stack_size = 8192; config.send_wait_timeout = 2; config.recv_wait_timeout = 5;
+  config.stack_size = 12288; config.send_wait_timeout = 2; config.recv_wait_timeout = 5;
   if (httpd_start(&streamServer, &config) == ESP_OK && registerRoute(streamServer, "/stream", HTTP_GET, streamHandler))
     serverMessage = "Bereit auf Port 81 (ein aktives Livebild)";
   else {
@@ -447,33 +572,147 @@ static void startServers() {
   // Start the control server last: all status strings are now initialized.
   config.server_port = 80; config.ctrl_port = 32768;
   config.lru_purge_enable = true;
+  config.max_uri_handlers = 10;
   if (httpd_start(&webServer, &config) != ESP_OK ||
       !registerRoute(webServer, "/", HTTP_GET, indexHandler) ||
       !registerRoute(webServer, "/status", HTTP_GET, statusHandler) ||
       !registerRoute(webServer, "/snapshot", HTTP_POST, snapshotHandler) ||
       !registerRoute(webServer, "/led", HTTP_POST, lightHandler) ||
-      !registerRoute(webServer, "/capture", HTTP_POST, captureHandler))
+      !registerRoute(webServer, "/capture", HTTP_POST, captureHandler) ||
+      !registerRoute(webServer, "/photos", HTTP_GET, photosHandler) ||
+      !registerRoute(webServer, "/photo", HTTP_GET, photoHandler))
     Serial.println("FEHLER: Webserver nicht vollständig gestartet. Board neu starten.");
 }
 
+// First conversion settles the ADC channel after switching. Median of five
+// calibrated conversions rejects up to two isolated ADC outliers per burst.
+static unsigned readSenseMillivolts(int pin) {
+  analogReadMilliVolts(pin);
+  unsigned values[5];
+  for (unsigned i = 0; i < 5; ++i) values[i] = analogReadMilliVolts(pin);
+  return medianMillivolts5(values);
+}
+
+// Sample independently of blocking camera/SD calls. This task is the sole
+// status-LED writer after startup and also enforces the illumination timeout.
+static void statusWatchdog(void *) {
+  ChargeMonitor monitor;
+  ChargeState previous = ChargeState::NoUsb;
+  uint32_t patternAt = millis();
+  for (;;) {
+    const unsigned usbMv = readSenseMillivolts(USB_SENSE_GPIO);
+    const unsigned chargeMv = readSenseMillivolts(CHARGE_SENSE_GPIO);
+    const uint32_t now = millis();
+    const ChargeState state = monitor.update(now, usbMv, chargeMv);
+    chargeState.store(state);
+    if (state != previous) { previous = state; patternAt = now; }
+    const bool on = statusLed(state, now - patternAt, statusReady.load(),
+                              photoBusy.load(), photoSuccess.load(), now - photoSuccessAt.load());
+    digitalWrite(STATUS_GPIO, on ? HIGH : LOW);
+    expireLight();
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
+
+static bool setLight(uint8_t brightness) {
+  if (!lightReady || xSemaphoreTake(lightMutex, pdMS_TO_TICKS(100)) != pdTRUE) return false;
+  const bool ok = writeLightLocked(brightness);
+  xSemaphoreGive(lightMutex);
+  return ok;
+}
+
+static void idleCamera() {
+  if (cameraActive) { esp_camera_deinit(); cameraActive = false; }
+}
+
+static void offlineCapture() {
+  photoSuccess.store(false);
+  photoBusy.store(true);
+  Photo photo; String error, path;
+  // Restart the single-buffer camera only when needed. The normal ready state
+  // has no camera DMA/XCLK driver running. Sensor rails remain board-powered.
+  initCamera();
+  bool ok = cameraActive && setLight(OFFLINE_LIGHT_PERCENT);
+  if (ok) {
+    delay(LIGHT_SETTLE_MS);
+    ok = takePhoto(photo, error);
+    if (ok) {
+      delay(LIGHT_AFTER_MS);
+      if (lightBrightness.load() != OFFLINE_LIGHT_PERCENT) {
+        error = "Beleuchtung während der Aufnahme abgeschaltet. Neustart erforderlich.";
+        ok = false;
+      }
+    }
+  }
+  if (!setLight(0)) { ok = false; error = "Beleuchtung konnte nicht ausgeschaltet werden."; }
+  idleCamera();
+  if (ok) ok = saveSDPhoto(photo, path, error);
+  if (!ok) {
+    offlineFault = true;
+    statusReady.store(false);
+    photoBusy.store(false);
+    Serial.println(error.length() ? error : "Offline-Aufnahme fehlgeschlagen. Neu starten.");
+    return; // Never blink success or report readiness after failure.
+  }
+  photoSuccessAt.store(millis());
+  photoSuccess.store(true);
+  delay(500); // keep the shutter busy until the two success flashes finish
+  photoSuccess.store(false);
+  photoBusy.store(false);
+}
+
 void setup() {
-  Serial.begin(115200);
-  delay(500); // No while(!Serial): stand-alone operation without a USB host.
-  Serial.printf("\nOtoskop | Arduino-ESP32 %s\n", ESP_ARDUINO_VERSION_STR);
+  pinMode(STATUS_GPIO, OUTPUT); digitalWrite(STATUS_GPIO, LOW);
+  pinMode(LIGHT_GPIO, OUTPUT); digitalWrite(LIGHT_GPIO, LOW);
+  pinMode(SHUTTER_GPIO, INPUT_PULLUP);
+  BootSelector selector(millis(), digitalRead(SHUTTER_GPIO) == LOW);
+  BootMode choice;
+  do {
+    choice = selector.update(millis(), digitalRead(SHUTTER_GPIO) == LOW);
+    if (choice == BootMode::Pending) delay(5);
+  } while (choice == BootMode::Pending);
+  wifiMode = choice == BootMode::Wifi;
+  Serial.begin(115200); // No wait for USB; a host is never needed to take photos.
   initIdentity();
+  pinMode(USB_SENSE_GPIO, INPUT);
+  pinMode(CHARGE_SENSE_GPIO, INPUT);
+  analogReadResolution(12);
+  analogSetPinAttenuation(USB_SENSE_GPIO, ADC_11db);
+  analogSetPinAttenuation(CHARGE_SENSE_GPIO, ADC_11db);
   cameraMutex = xSemaphoreCreateMutex();
-  initCamera(); Serial.println(cameraMessage);
   initLight(); Serial.println(lightMessage);
+  const bool statusTaskReady = xTaskCreate(statusWatchdog, "status-guard", 4096, nullptr, 2, nullptr) == pdPASS;
+  if (!lightReady || !statusTaskReady) {
+    setLight(0); lightReady = false; offlineFault = true;
+    Serial.println("Beleuchtungs-Watchdog nicht verfügbar.");
+  }
+  initCamera(); Serial.println(cameraMessage);
   initSD(); Serial.println(sdMessage);
+  if (!wifiMode) {
+    WiFi.mode(WIFI_OFF);
+    idleCamera();
+    offlineFault = offlineFault || !cameraReady || !sdReady;
+    shutter.reset(millis(), digitalRead(SHUTTER_GPIO) == LOW);
+    statusReady.store(!offlineFault);
+    Serial.println("Offline-Modus: Auslöser für Foto; WLAN ausgeschaltet.");
+    return;
+  }
   WiFi.mode(WIFI_AP);
   const IPAddress ip(192, 168, 4, 1), mask(255, 255, 255, 0);
   if (!WiFi.softAPConfig(ip, ip, mask) || !WiFi.softAP(deviceName.c_str(), AP_PASSWORD, AP_CHANNEL, false, 2)) {
-    Serial.println("FEHLER: WLAN-Access-Point konnte nicht starten. Stromversorgung prüfen und neu starten.");
+    Serial.println("FEHLER: WLAN konnte nicht starten. Neu starten.");
     return;
   }
   startServers();
+  statusReady.store(cameraReady && webServer && streamServer);
   Serial.printf("WLAN: %s | Passwort: %s | http://192.168.4.1\n", deviceName.c_str(), AP_PASSWORD);
-  Serial.println(serverMessage);
 }
 
-void loop() { expireLight(); delay(50); }
+void loop() {
+  if (!wifiMode && shutter.update(millis(), digitalRead(SHUTTER_GPIO) == LOW, !offlineFault)) {
+    offlineCapture();
+    // Ignore all presses made while capture/storage/feedback was busy.
+    shutter.reset(millis(), digitalRead(SHUTTER_GPIO) == LOW);
+  }
+  delay(5);
+}

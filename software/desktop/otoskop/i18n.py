@@ -137,6 +137,36 @@ TEXT = {
 # an in-flight request always uses the currently selected language.
 TEXT.update(SETUP_TEXT)
 
+TEXT.update({
+    "sd_button": ("SD-Fotos importieren", "Import SD photos"),
+    "sd_title": ("Fotos von SD-Karte importieren", "Import photos from SD card"),
+    "mode_instructions": ("Offline-Modus: normal einschalten. WLAN-Modus: Auslöser beim Einschalten 5 Sekunden halten und loslassen.", "Offline mode: power on normally. Wi-Fi mode: hold the shutter while powering on for 5 seconds, then release."),
+    "sd_intro": ("Wähle die Fotos zum Kopieren. Die Originale bleiben auf der SD-Karte. Das Livebild pausiert während des Imports. Ziel: {folder}", "Select photos to copy. Originals stay on the SD card. Live view pauses during import. Destination: {folder}"),
+    "sd_loading": ("Fotos auf der SD-Karte werden gelesen …", "Reading the SD photo list …"),
+    "sd_select_all": ("Alle auswählen", "Select all"),
+    "sd_refresh": ("Aktualisieren", "Refresh"),
+    "sd_import_selected": ("Auswahl importieren", "Import selected"),
+    "sd_cancel": ("Abbrechen", "Cancel"),
+    "sd_found": ("{count} Fotos gefunden. Bereits identische Dateien werden beim Import übersprungen.", "Found {count} photos. Identical local files are skipped during import."),
+    "sd_progress": ("Foto {current} von {total}: {name}", "Photo {current} of {total}: {name}"),
+    "sd_complete": ("{count} Fotos importiert, {skipped} bereits vorhanden. Originale auf der Karte bleiben erhalten.", "Imported {count} photos; {skipped} already present. Originals remain on the card."),
+    "sd_cancelled": ("Import abgebrochen. Bereits vollständig kopierte Fotos bleiben erhalten.", "Import cancelled. Photos already copied in full are retained."),
+    "sd_invalid_list": ("Die Fotoliste ist ungültig. Import gestoppt; bereits kopierte Fotos bleiben erhalten.", "Invalid photo list. Import stopped; already copied photos are retained."),
+    "sd_invalid_photo": ("Foto unvollständig oder Übertragungsprüfung fehlgeschlagen. Import gestoppt; vorhandene Fotos bleiben erhalten.", "Incomplete photo or transfer verification failed. Import stopped; existing photos are retained."),
+    "sd_wrong_device": ("Das WLAN-Gerät stimmt nicht mit dem ausgewählten Otoskop überein.", "The Wi-Fi device does not match the selected otoscope."),
+    "sd_unsupported": ("Diese Firmware unterstützt keinen SD-Import. Installiere Firmware 2.0.0 oder neuer.", "This firmware does not support SD import. Install firmware 2.0.0 or later."),
+    "sd_not_ready": ("SD-Karte nicht bereit. Gerät ausschalten, Karte prüfen und im WLAN-Modus neu starten.", "SD card not ready. Power off, check the card, then restart in Wi-Fi mode."),
+    "sd_write_error": ("Foto konnte nicht auf dem Rechner gespeichert werden. Prüfe Speicherplatz und Zielordner. Bereits kopierte Fotos bleiben erhalten.", "Could not save the photo on this computer. Check free space and the destination folder. Already copied photos are retained."),
+    "offline_short": ("Getrennt", "Disconnected"),
+    "empty_body": ("Starte das Otoskop im WLAN-Modus: Auslöser beim Einschalten 5 Sekunden halten und loslassen. Verbinde den Computer mit seinem WLAN.", "Start the otoscope in Wi-Fi mode: hold the shutter while powering on for 5 seconds, then release. Join its Wi-Fi network."),
+    "step_1_body": ("Firmware einmal über „Otoskop einrichten“ installieren. Normal einschalten startet den Offline-Modus. Für WLAN den Auslöser beim Einschalten 5 Sekunden halten und loslassen. Bei angeschlossenem USB: Auslöser halten, RESET kurz drücken, 5 Sekunden halten und loslassen.", "Install firmware once with “Set up otoscope”. Normal power-on starts offline mode. For Wi-Fi, hold the shutter while powering on for 5 seconds, then release. With USB attached: hold the shutter, tap RESET, hold for 5 seconds, then release."),
+    "trouble_1_body": ("Normal startet der Offline-Modus ohne WLAN. Halte den Auslöser beim Einschalten 5 Sekunden und lasse ihn los. Bei USB-Versorgung Auslöser halten, RESET kurz drücken, 5 Sekunden halten und loslassen. Prüfe auch die Antenne.", "Normal startup is offline, with Wi-Fi off. Hold the shutter while powering on for 5 seconds, then release. With USB power, hold the shutter, tap RESET, hold for 5 seconds, then release. Also check the antenna."),
+})
+
+TEXT.update({
+    "step_1_note": ("Beim Laden blinkt die äußere Status-LED alle 5 Sekunden einmal; nach erkanntem Ladeabschluss zweimal. Bei unklarem Signal gibt es keine Vollmeldung. Dafür die Ladeabgriffe gemäß Schaltplan anschließen und Firmware 2.0.0 installieren.", "While charging, the external status LED flashes once every 5 seconds; twice after a confirmed charging completion. An unknown signal never means full. Connect the charging inputs as shown in the schematic and install firmware 2.0.0."),
+})
+
 SOURCE = {
     "Kamera liefert noch kein vollständiges Foto in maximaler Auflösung. Erneut versuchen.": "The camera has not returned a complete photo at maximum resolution. Please try again.",
     "Keine Kameraaufnahme erhalten. Board neu starten.": "No photo received from the camera. Restart the board.",

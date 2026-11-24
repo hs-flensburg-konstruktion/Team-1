@@ -37,7 +37,7 @@ class FakeRunner(QObject):
 class USBDialogTests(unittest.TestCase):
     def setUp(self):
         QSettings(QSettings.defaultFormat(), QSettings.Scope.UserScope,
-                  "GliaOtoskop", "OtoskopDesktop").clear()
+                  "GliaOtoskop", "OtoskopDesktop2").clear()
         self.windows = []
 
     def tearDown(self):
@@ -159,7 +159,7 @@ class ProcessTests(unittest.TestCase):
         until(lambda: not runner.busy, timeout=15)
         self.assertEqual(errors, [])
         self.assertEqual(results[0]["esptool_version"], "5.1.0")
-        self.assertEqual(results[0]["firmware_version"], "1.5.0")
+        self.assertEqual(results[0]["firmware_version"], "2.0.0")
         self.assertGreater(results[0]["stub_bytes"], 0)
 
     def test_process_exit_drains_large_logs_and_reports_final_result(self):

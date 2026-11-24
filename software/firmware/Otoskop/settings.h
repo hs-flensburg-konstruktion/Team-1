@@ -3,7 +3,7 @@
 // WPA2 access point. Change the password before sharing the device.
 static constexpr char AP_SSID[] = "Otoskop";
 static constexpr char AP_PASSWORD[] = "Otoskop-2026";
-static constexpr char FIRMWARE_VERSION[] = "1.5.0";
+static constexpr char FIRMWARE_VERSION[] = "2.0.0";
 static constexpr framesize_t STREAM_SIZE = FRAMESIZE_VGA;
 static constexpr int STREAM_QUALITY = 12;
 static constexpr int PHOTO_QUALITY = 10; // Lower means better quality; no upscaling.
@@ -23,6 +23,22 @@ static constexpr int SD_CS = 21, SD_SCK = 7, SD_MISO = 8, SD_MOSI = 9;
 static constexpr int LIGHT_GPIO = 1;
 static constexpr uint32_t LIGHT_PWM_HZ = 20000;
 static constexpr uint32_t LIGHT_TIMEOUT_MS = 10000;
+// External controls and charger sensing; ADC inputs require their dividers.
+static constexpr int SHUTTER_GPIO = 4;       // XIAO D3: normally-open button to GND
+static constexpr int STATUS_GPIO = 5;        // XIAO D4: white LED via 1 kOhm to GND
+static constexpr uint8_t OFFLINE_LIGHT_PERCENT = 30;
+static constexpr uint32_t LIGHT_SETTLE_MS = 400;
+static constexpr uint32_t LIGHT_AFTER_MS = 150;
+static constexpr int CHARGE_SENSE_GPIO = 6;   // D5/ADC1: divided nCHG / CHG0 cathode
+static constexpr int USB_SENSE_GPIO = 2;      // D1/ADC1: divided USB 5V / VBUS
+// Both inputs: source -> 10k -> ADC -> 10k -> GND; no external capacitor.
+// Never connect the on-board charging LED or VBUS directly to an ESP GPIO.
+static_assert(CHARGE_SENSE_GPIO != USB_SENSE_GPIO && CHARGE_SENSE_GPIO != STATUS_GPIO &&
+              CHARGE_SENSE_GPIO != SHUTTER_GPIO && CHARGE_SENSE_GPIO != LIGHT_GPIO &&
+              USB_SENSE_GPIO != STATUS_GPIO && USB_SENSE_GPIO != SHUTTER_GPIO &&
+              USB_SENSE_GPIO != LIGHT_GPIO, "Charge inputs must use separate ADC1 pins");
+static_assert(SHUTTER_GPIO != STATUS_GPIO && LIGHT_GPIO != SHUTTER_GPIO &&
+              LIGHT_GPIO != STATUS_GPIO, "External controls must use separate pins");
 static_assert(LIGHT_GPIO == -1 || (LIGHT_GPIO >= 1 && LIGHT_GPIO <= 6) ||
               LIGHT_GPIO == 43 || LIGHT_GPIO == 44,
               "LIGHT_GPIO must be a free XIAO GPIO: 1..6, 43 or 44");

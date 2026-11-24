@@ -235,7 +235,7 @@ class ClientTests(unittest.TestCase):
 class UiTests(unittest.TestCase):
     def setUp(self):
         settings = QSettings(QSettings.defaultFormat(), QSettings.Scope.UserScope,
-                             "GliaOtoskop", "OtoskopDesktop")
+                             "GliaOtoskop", "OtoskopDesktop2")
         settings.clear()
 
     def test_native_photo_is_saved_unchanged_and_wrong_resolution_is_rejected(self):

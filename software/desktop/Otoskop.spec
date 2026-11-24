@@ -41,7 +41,7 @@ coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="Otoskop")
 if is_mac:
     app = BUNDLE(
         coll, name="Otoskop.app", icon=str(source / "assets" / "otoskop.icns"),
-        bundle_identifier="org.glia.otoskop.desktop",
+        bundle_identifier="org.glia.otoskop.desktop.v2",
         info_plist={
             "CFBundleShortVersionString": version,
             "CFBundleVersion": version,

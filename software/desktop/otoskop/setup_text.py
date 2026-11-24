@@ -72,3 +72,9 @@ SETUP_TEXT = {
  "usb_error_identity": ("Die Gerätekennung konnte nicht gelesen werden. Wiederhole die Verbindung im Bootmodus.", "Could not read the device identity. Retry the connection in bootloader mode."),
  "usb_error_internal": ("Die USB-Einrichtung konnte nicht abgeschlossen werden. Prüfe die Details und versuche es erneut.", "USB setup could not be completed. Check the details and try again."),
 }
+
+SETUP_TEXT.update({
+ "usb_wifi_body": ("Die Firmware ist installiert und startet normalerweise im Offline-Modus. Für die WLAN-Prüfung: Auslöser gedrückt halten, RESET am XIAO kurz drücken, den Auslöser noch 5 Sekunden halten und loslassen. Dann den Computer mit dem unten genannten WLAN verbinden.", "Firmware is installed and normally starts in offline mode. To check Wi-Fi: hold the shutter, tap RESET on the XIAO, keep holding the shutter for 5 seconds, then release. Join the Wi-Fi network shown below."),
+ "usb_reset_note": ("Der große Schalter trennt nur den Akku. Solange USB angeschlossen ist, für einen Neustart RESET verwenden. Auslöser und BOOT sind unterschiedliche Tasten.", "The main switch disconnects only the battery. While USB is attached, use RESET to restart. The shutter and BOOT are different buttons."),
+ "usb_wifi_note": ("„Kein Internet“ ist normal. Nach dem nächsten normalen Neustart läuft wieder der Offline-Modus. Ein erneutes Flashen ist zum Wechseln nicht nötig.", "“No internet” is normal. The next normal restart returns to offline mode. Switching modes does not require flashing again."),
+})

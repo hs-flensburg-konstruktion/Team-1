@@ -93,7 +93,7 @@ class OtoscopeClient(QObject):
         request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/x-www-form-urlencoded")
         return request
 
-    def _fetch(self, path, callback, failure, *, post=False, limit=65536, timeout=4500):
+    def _fetch(self, path, callback, failure, *, post=False, limit=65536, timeout=4500, headers=False):
         generation = self._generation
         request = self._request(path, timeout)
         reply = self.network.post(request, b"") if post else self.network.get(request)
@@ -119,6 +119,7 @@ class OtoscopeClient(QObject):
             read()
             code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
             error = reply.error()
+            response_headers = {bytes(k).lower(): bytes(v) for k, v in reply.rawHeaderPairs()}
             reply.deleteLater()
             if too_large:
                 failure("Die Antwort des Otoskops ist zu groß.")
@@ -131,7 +132,10 @@ class OtoscopeClient(QObject):
             elif error != QNetworkReply.NetworkError.NoError:
                 failure("Otoskop nicht erreichbar. WLAN-Verbindung und Geräteadresse prüfen.")
             else:
-                callback(bytes(data))
+                if headers:
+                    callback(bytes(data), response_headers)
+                else:
+                    callback(bytes(data))
 
         reply.readyRead.connect(read)
         reply.finished.connect(finished)

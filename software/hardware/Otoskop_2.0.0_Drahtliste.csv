@@ -1,0 +1,22 @@
+﻿Nummer;Von;Nach;Netz
+01;Halter +;S1 Kontakt A;BAT_RAW
+02;S1 Kontakt B;XIAO BAT+;VBAT_SW
+03;VBAT_SW;R1-R4 je Eingang;VBAT_SW
+04;Halter -;XIAO BAT- / GND;GND
+05;XIAO D0 / GPIO1;R5 (100 Ohm);LED_PWM
+06;R5 Ausgang;Q1 Gate / Pin 1 und R6.1;GATE
+07;R6.2 (100 kOhm);GND;GND
+08;R1-R4 je Ausgang;D1-D4 je Anode A;LED_A1..4
+09;D1-D4 je Kathode K;Q1 Drain / Pin 3;LED_K
+10;Q1 Source / Pin 2;GND;GND
+11;XIAO D3 / GPIO4;S2 Kontakt 1;SHUTTER
+12;S2 Kontakt 2;GND;GND
+13;XIAO D4 / GPIO5;R9 (1 kOhm);STATUS_GPIO
+14;R9 Ausgang;D5 Anode A;STATUS_ANODE
+15;D5 Kathode K;GND;GND
+16;U1 rote Lade-LED, Kathode / nCHG;R10 (10 kOhm);CHARGE_RAW
+17;R10 Ausgang;D5 / GPIO6 und R11.1;LAD_ADC
+18;R11.2;GND;GND
+19;XIAO 5V / VBUS;R12 (10 kOhm);USB_5V
+20;R12 Ausgang;D1 / GPIO2 und R13.1;USB_ADC
+21;R13.2;GND;GND

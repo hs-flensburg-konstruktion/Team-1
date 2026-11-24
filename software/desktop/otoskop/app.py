@@ -19,6 +19,7 @@ from . import __version__
 from .client import OtoscopeClient
 from .guide import ConnectionGuide
 from .usb_setup import USBSetupDialog
+from .sd_import import SDImportDialog
 from .i18n import Translator
 from .protocol import device_urls, save_photo
 from .widgets import (DARK_STYLE, STYLE, BrightnessSlider, ElidedPath, Preview, ShutterButton,
@@ -29,12 +30,14 @@ class MainWindow(QMainWindow):
     def __init__(self, demo=False):
         super().__init__()
         self.settings = QSettings(QSettings.defaultFormat(), QSettings.Scope.UserScope,
-                                  "GliaOtoskop", "OtoskopDesktop")
+                                  "GliaOtoskop", "OtoskopDesktop2")
         self.tr = Translator(self.settings.value("language", "de"))
         self.bindings = []
         self.tooltips = []
         self.guide = None
         self.setup_dialog = None
+        self.import_dialog = None
+        self.closing = False
         pictures = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.PicturesLocation)
         self.folder = Path(self.settings.value("folder", str(Path(pictures or str(Path.home())) / "Otoskop")))
         self.want_connection = False
@@ -244,6 +247,11 @@ class MainWindow(QMainWindow):
         folders.addWidget(self.choose_folder, 1)
         folders.addWidget(self.open_folder)
         folder_layout.addLayout(folders)
+        self.sd_import_button = self._button("sd_button")
+        self.sd_import_button.clicked.connect(self._show_sd_import)
+        folder_layout.addWidget(self.sd_import_button)
+        self.mode_note = self._label("mode_instructions")
+        folder_layout.addWidget(self.mode_note)
         controls.addWidget(folder_card)
         controls.addStretch()
         scroll.setWidget(sidebar_content)
@@ -421,7 +429,7 @@ class MainWindow(QMainWindow):
             button.setIcon(icon(symbol, color, 16))
 
     def _retranslate(self):
-        self.setWindowTitle("Otoskop")
+        self.setWindowTitle(f"Otoskop {__version__}")
         for widget, key in self.bindings:
             widget.setText(self.tr(key))
         for widget, key in self.tooltips:
@@ -456,8 +464,13 @@ class MainWindow(QMainWindow):
             self.guide.retranslate()
         if self.setup_dialog is not None:
             self.setup_dialog.retranslate()
+        if self.import_dialog is not None:
+            self.import_dialog.retranslate()
 
     def _render_controls(self):
+        self.sd_import_button.setEnabled(not self.demo and not self.photo_busy and self.client.connected
+                                         and self.status.get("sd_download_supported") is True
+                                         and self.status.get("sd_ok") is True)
         self.connect_button.setText(self.tr("disconnect" if self.want_connection else "connect"))
         self.connect_button.setEnabled(not self.demo)
         self.address.setEnabled(not self.demo and not self.want_connection)
@@ -551,6 +564,41 @@ class MainWindow(QMainWindow):
         self.setup_dialog.show()
         self.setup_dialog.raise_()
         self.setup_dialog.activateWindow()
+
+    def _show_sd_import(self):
+        if not self.sd_import_button.isEnabled():
+            return
+        address, device_id = self.address.text(), self.status.get("device_id", "")
+        # Release the control connection while importing, so stream/poll/LED
+        # requests cannot compete with long SD transfers on the ESP server.
+        self.client.disconnect_device()
+        dialog = SDImportDialog(self.tr, address, device_id, self.folder, self)
+        self.import_dialog = dialog
+        dialog.importer.saved.connect(self._add_imported_photo)
+        def resume(_result):
+            self.import_dialog = None
+            dialog.importer.cancel()
+            dialog.deleteLater()
+            if not self.closing and self.want_connection:
+                self.client.connect_device(address)
+        dialog.finished.connect(resume)
+        dialog.show()
+
+    def _add_imported_photo(self, path, _created):
+        path = Path(path)
+        image = QImage(str(path))
+        if image.isNull():
+            return
+        item = QListWidgetItem(QIcon(QPixmap.fromImage(image)), path.name)
+        item.setData(Qt.ItemDataRole.UserRole, str(path))
+        item.setData(Qt.ItemDataRole.UserRole + 1, (path.name, False))
+        item.setToolTip(f"{image.width()} × {image.height()}\n{path}")
+        item.setSizeHint(QSize(142, 92))
+        self.gallery.insertItem(0, item)
+        if self.gallery.count() > 100:
+            self.gallery.takeItem(100)
+        self.photo_count += 1
+        self._render_controls()
 
     def _prepare_for_flash(self):
         if self.demo:
@@ -832,6 +880,9 @@ class MainWindow(QMainWindow):
             self.setup_dialog.show()
             event.ignore()
             return
+        self.closing = True
+        if self.import_dialog is not None:
+            self.import_dialog.close()
         try:
             device_urls(self.address.text())
         except ValueError:

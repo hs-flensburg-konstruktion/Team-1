@@ -17,6 +17,7 @@ import PyInstaller.__main__
 
 def main():
     sys.path.insert(0, str(SOURCE))
+    from otoskop import __version__
     from otoskop.firmware_bundle import load_bundle
     load_bundle()  # Never ship a partial or stale/corrupt binary set.
     PyInstaller.__main__.run([
@@ -25,11 +26,11 @@ def main():
         str(SOURCE / "Otoskop.spec"),
     ])
     if sys.platform == "darwin":
-        archive = OUT / f"Otoskop-Mac-{platform.machine()}.zip"
+        archive = OUT / f"Otoskop-{__version__}-Mac-{platform.machine()}.zip"
         subprocess.run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent",
                         str(OUT / "Otoskop.app"), str(archive)], check=True)
     elif sys.platform == "win32":
-        archive = Path(shutil.make_archive(str(OUT / f"Otoskop-Windows-{platform.machine()}"),
+        archive = Path(shutil.make_archive(str(OUT / f"Otoskop-{__version__}-Windows-{platform.machine()}"),
                                           "zip", OUT, "Otoskop"))
     else:
         archive = Path(shutil.make_archive(str(OUT / "Otoskop-Linux"), "gztar", OUT, "Otoskop"))

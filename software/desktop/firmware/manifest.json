@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "board": "XIAO_ESP32S3_SENSE",
+  "chip": "ESP32-S3",
+  "flash_bytes": 8388608,
+  "flash_mode": "dio",
+  "flash_freq": "80m",
+  "version": "2.0.0",
+  "ssid_prefix": "Otoskop",
+  "password": "Otoskop-2026",
+  "led_configured": true,
+  "source_sha256": {
+    "charge_status.h": "07234441f4a26b446149a0da4d5f867b98b51c9aa6baf7c8f5e7f1820bbd78fb",
+    "jpeg_dimensions.h": "4496e23a1e55554be81b7d94eecaa84b4d97c485d5e694862aaff823fac0b40f",
+    "settings.h": "841779c22e723a75cfbd8218537eb54bda0d3e4edfff9e7416efe66c6fb2691c",
+    "Otoskop.ino": "64d0a842b1915779afc1afe6ba08bc16802d13fcaf421e8721a187f78d626d4b",
+    "offline_control.h": "0bd46d8c497993610ec090d858ee6a9e891fcea68e7febff926f079de4aeb83f",
+    "photo_buffer.h": "82001adf306c5dde42c64471a602cdda1b6501e47088c07ea0ceffe6f9975e34",
+    "photo_names.h": "6c6edf66ee78d0c0c5e45af20dfb42d10cca6120836ff9af235884e6fcf8402b"
+  },
+  "images": [
+    {
+      "file": "Otoskop.ino.bootloader.bin",
+      "offset": 0,
+      "bytes": 19968,
+      "sha256": "73bd425e380c709f6abd83aa987cb51c042a9aa8de44a37a9edb22d53bca08dd"
+    },
+    {
+      "file": "Otoskop.ino.partitions.bin",
+      "offset": 32768,
+      "bytes": 3072,
+      "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+    },
+    {
+      "file": "boot_app0.bin",
+      "offset": 57344,
+      "bytes": 8192,
+      "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+    },
+    {
+      "file": "Otoskop.ino.bin",
+      "offset": 65536,
+      "bytes": 1087344,
+      "sha256": "033e4497733b534b36e53cd74836f6a95a7b6d9b261d3c6d9a4e32fb207fb1e3"
+    }
+  ]
+}
